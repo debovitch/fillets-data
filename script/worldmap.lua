@@ -73,14 +73,14 @@ branch_addNode("experiments", "propulsion", "script/propulsion/init.lua", 118, 1
 branch_addNode("reactor", "electromagnet", "script/electromagnet/init.lua", 198, 244, true)
 
 -- Coral reef
-branch_addNode("reef", "corals", "script/corals/init.lua", 325, 300, true)
-branch_addNode("corals", "labyrinth", "script/labyrinth/init.lua", 359, 304)
-branch_addNode("labyrinth", "imprisoned", "script/imprisoned/init.lua", 390, 330)
-branch_addNode("imprisoned", "society", "script/society/init.lua", 409, 359)
-branch_addNode("society", "creatures", "script/creatures/init.lua", 414, 387)
-branch_addNode("creatures", "cancan", "script/cancan/init.lua", 390, 417)
-branch_addNode("cancan", "pearls", "script/pearls/init.lua", 357, 404)
-branch_addNode("pearls", "turtle", "script/turtle/init.lua", 343, 369,
+branch_addNode("reef", "corals", "script/corals/init.lua", 329, 294, true)
+branch_addNode("corals", "labyrinth", "script/labyrinth/init.lua", 367, 296)
+branch_addNode("labyrinth", "imprisoned", "script/imprisoned/init.lua", 401, 314)
+branch_addNode("imprisoned", "society", "script/society/init.lua", 418, 346)
+branch_addNode("society", "creatures", "script/creatures/init.lua", 412, 383)
+branch_addNode("creatures", "cancan", "script/cancan/init.lua", 386, 406)
+branch_addNode("cancan", "pearls", "script/pearls/init.lua", 352, 408)
+branch_addNode("pearls", "turtle", "script/turtle/init.lua", 337, 375,
         false, "script/turtle/demo_poster.lua")
 
 -- Treasure Cave
