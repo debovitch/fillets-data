@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import tarfile
 import tempfile
 from collections import defaultdict
 from pathlib import Path
@@ -16,7 +17,8 @@ from PIL import Image, ImageChops, ImageStat
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = "492dfd02a9f413e00a27b40d22d960732e931f78"
-BASE = "7daaf56dc85500135588037c0bbbb0870b92ec6d"
+HD_BASE = "cd17311e9e13cce4e033596a0579c3fb1cb25958"
+PNG_BASE = "7daaf56dc85500135588037c0bbbb0870b92ec6d"
 CATALOG = ROOT / "docs/ff4e-upscales.json"
 AI = Path("public/enhanced-ai")
 STAGED = Path("public/enhanced")
@@ -64,12 +66,12 @@ def room_names(src):
     return names
 
 
-def room_plans(src, folder, slug):
+def room_plans(src, folder, slug, png_root):
     name = folder.name
     ai = read(folder / "ai.json")
     check(ai["scale"] == 4, folder)
     models = (ROOT / "script" / slug / "models.lua").read_text()
-    originals = ROOT / "images" / slug
+    originals = png_root / "images" / slug
     by_hash = defaultdict(list)
     for png in originals.glob("*.png"):
         by_hash[sha(png.read_bytes())].append(png)
@@ -103,7 +105,7 @@ def room_plans(src, folder, slug):
     return plans
 
 
-def shared_plans(src, folder):
+def shared_plans(src, folder, png_root):
     name = folder.name
     if name == "_fish":
         plans = {}
@@ -113,7 +115,7 @@ def shared_plans(src, folder):
                 check([Path(f).with_suffix(".png").name for f in files] == native[size][facing], files)
                 for file in files:
                     png = Path(file).with_suffix(".png")
-                    body = ROOT / "images/fishes" / size
+                    body = png_root / "images/fishes" / size
                     part = body / "heads" if file.startswith("head_") else body
                     master = STAGED / name / size / facing / png
                     original = part / facing / png
@@ -127,13 +129,13 @@ def shared_plans(src, folder):
         native = read(src / STAGED / name / "frames.json")
         check(ai["order"] == [str(Path(f).with_suffix(".webp")) for f in native["order"]], folder)
         check(ai["region"] == native["region"] and ai["base"] == native["base"], folder)
-        plans = {"base.webp": dict(kind="cutscene-base", original=ROOT / "images/demo_briefcase/kufr256.png",
+        plans = {"base.webp": dict(kind="cutscene-base", original=png_root / "images/demo_briefcase/kufr256.png",
                  master=STAGED / name / "base.png", method="cutscene-lua+visible-pixels")}
         for f in ai["frames"]:
             positions = [i for i, entry in enumerate(ai["order"]) if entry == f]
             plan = dict(kind="cutscene-frame", playback=positions, logical=[ai["region"]["w"], ai["region"]["h"]])
             if positions == [0] and f == "f0000.webp":
-                plan.update(original=ROOT / "images/demo_briefcase/demo_000.png", method="playback+opaque-first-frame+visual")
+                plan.update(original=png_root / "images/demo_briefcase/demo_000.png", method="playback+opaque-first-frame+visual")
             else:
                 plan["reason"] = "opaque-composite-vs-transparent-delta" if positions else "absent-from-playback-order"
             plans["frames/" + f] = plan
@@ -150,7 +152,7 @@ def shared_plans(src, folder):
             with Image.open(src / master) as im:
                 pixels = visible(im).tobytes()
             matches = []
-            for path in (ROOT / "images").glob("*/poster.png"):
+            for path in (png_root / "images").glob("*/poster.png"):
                 with Image.open(path) as poster:
                     if visible(poster).tobytes() == pixels:
                         matches.append(path)
@@ -163,7 +165,7 @@ def shared_plans(src, folder):
     return plans
 
 
-def menu_plans():
+def menu_plans(png_root):
     plans = {}
     for name in ["mapa-0", "mapa-1", "krokomer", "n0", "n1", "n2", "n3", "n4", "ikonky", "loading"]:
         key = name + ("_ai.png" if re.fullmatch(r"n\d", name) else "_ai.webp")
@@ -175,12 +177,12 @@ def menu_plans():
                 plan["master"] = MENU / "loading.BMP"
         else:
             png = {"mapa-1": "map_lower", "krokomer": "pedometer"}.get(name, name)
-            plan.update(original=ROOT / "images/menu" / (png + ".png"), method="menu-layer+visible-pixels")
+            plan.update(original=png_root / "images/menu" / (png + ".png"), method="menu-layer+visible-pixels")
         plans[key] = plan
     return plans
 
 
-def plans(src):
+def plans(src, png_root):
     names = room_names(src)
     for folder in sorted((src / AI).iterdir()):
         if not folder.is_dir():
@@ -191,9 +193,9 @@ def plans(src):
                      for kind, field in [("background", "bg"), ("wall", "wall")]
                      for key in read(folder / "ai.json")[field]}
         elif name.startswith("_"):
-            group = shared_plans(src, folder)
+            group = shared_plans(src, folder, png_root)
         else:
-            group = room_plans(src, folder, names[name])
+            group = room_plans(src, folder, names[name], png_root)
         actual = {str(p.relative_to(folder)) for p in folder.rglob("*") if p.suffix.lower() in {".webp",".png",".jpg",".jpeg",".gif",".avif",".bmp"}}
         check(actual == set(group), f"{name}: inventory mismatch {actual ^ set(group)}")
         stampdir = folder / "x4" if name == "_fish" else folder
@@ -204,7 +206,7 @@ def plans(src):
             check(name == "SCORE" or stamp, path)
             yield path, names.get(name, "score" if name == "SCORE" else name), plan, stamp
     menu = src / MENU
-    group = menu_plans()
+    group = menu_plans(png_root)
     check({p.name for p in menu.glob("*_ai.*")} == set(group), menu)
     stamps = read(menu / ".build-stamp.json")
     for key, plan in sorted(group.items()):
@@ -224,7 +226,7 @@ def output_bytes(path):
         return data
 
 
-def inspect(src, path, level, plan, stamp):
+def inspect(src, path, level, plan, stamp, png_root):
     source = path.relative_to(src)
     model = stamp.split(":")[1] if stamp else ("orig" if level == "score" else "x4plus")
     original = plan.get("original")
@@ -233,11 +235,11 @@ def inspect(src, path, level, plan, stamp):
     status = "excluded" if model == "orig" else ("quarantine" if reason else "integrated")
     dest = None
     if status == "integrated":
-        dest = original.relative_to(ROOT).with_suffix(".webp")
+        dest = original.relative_to(png_root).with_suffix(".webp")
     elif status == "quarantine":
         dest = QUARANTINE / source
     r = dict(source=str(source), level=level, type=plan["kind"], status=status, model=model,
-             original=str(original.relative_to(ROOT)) if original else None,
+             original=str(original.relative_to(png_root)) if original else None,
              destination=str(dest) if dest else None, method=plan.get("method", reason),
              confidence="high" if original else None)
     if reason:
@@ -288,11 +290,41 @@ def inspect(src, path, level, plan, stamp):
 def inventory(src):
     revision = subprocess.check_output(["git", "-C", str(src), "rev-parse", "HEAD"], text=True).strip()
     check(revision == SOURCE, f"Expected FF4E revision {SOURCE}, found {revision}")
-    return [inspect(src, *args) for args in plans(src)]
+    # Canonical WebPs replaced the original PNGs on the HD branch.
+    with tempfile.TemporaryDirectory() as temp:
+        png_root = Path(temp)
+        archive = png_root / "originals.tar"
+        subprocess.run(["git", "-C", str(ROOT), "archive", "-o", str(archive),
+                        PNG_BASE, "images/*.png"], check=True)
+        with tarfile.open(archive) as files:
+            files.extractall(png_root, filter="data")
+        return [inspect(src, *args, png_root) for args in plans(src, png_root)]
 
 
-def publish(path, data):
-    # Hard-link a completed file into place. A racing writer cannot be overwritten.
+def hd_manifest(rows):
+    path = "images/hd-manifest.json"
+    base = subprocess.check_output(["git", "-C", str(ROOT), "show", f"{HD_BASE}:{path}"])
+    catalog = json.loads(base)
+    updated = {r["destination"]: r for r in rows if r["status"] == "integrated"}
+    previous_hashes = {}
+    for entry in catalog["images"]:
+        key = entry["hdPath"].removeprefix("data/")
+        if key not in updated:
+            continue
+        row = updated[key]
+        check(entry["logicalPath"] == "data/" + row["original"]
+              and entry["sourceSha256"] == row["original_sha256"]
+              and entry["originalSize"] == row["logical"], key)
+        previous_hashes[key] = entry["hdSha256"]
+        entry.update(scale=row["scale"], hdSize=row["pixels"], hdSha256=row["sha256"])
+    check(previous_hashes.keys() == updated.keys(), "Missing canonical HD paths")
+    catalog["distribution"]["date"] = "2026-11-21"
+    data = (json.dumps(catalog, ensure_ascii=False, indent=2) + "\n").encode()
+    return ROOT / path, base, data, previous_hashes
+
+
+def publish(path, data, previous_hash=None):
+    # Publish complete files, allowing replacement only of the pinned HD version.
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as tmp:
         temp = Path(tmp.name)
@@ -302,10 +334,13 @@ def publish(path, data):
         try:
             os.link(temp, path)
         except FileExistsError:
-            check(path.read_bytes() == data, f"Concurrent change at {path}")
+            current = path.read_bytes()
+            if current != data:
+                check(sha(current) == previous_hash, f"Concurrent change at {path}")
+                os.replace(temp, path)
         check(sha(path.read_bytes()) == sha(data), path)
     finally:
-        temp.unlink()
+        temp.unlink(missing_ok=True)
 
 
 def main():
@@ -319,7 +354,11 @@ def main():
     src = args.source.resolve()
     manifest = read(CATALOG)
     check(manifest["source_commit"] == SOURCE, CATALOG)
+    check(manifest["destination_base"] == HD_BASE and manifest["originals_commit"] == PNG_BASE, CATALOG)
     rows = inventory(src)
+    hd_path, hd_base, hd_new, previous = hd_manifest(rows)
+    current_hd = hd_path.read_bytes()
+    check(current_hd in (hd_base, hd_new), f"Conflict at {hd_path}")
     check(len(rows) == len(manifest["assets"]), "Incomplete source inventory")
     pending = []
     seen = set()
@@ -334,6 +373,9 @@ def main():
         seen.add(dest)
         if dest.exists():
             existing = sha(dest.read_bytes())
+            if existing == previous.get(row["destination"]):
+                pending.append((dest, row))
+                continue
             if existing != row["sha256"]:
                 with Image.open(dest) as im:
                     details = (im.format, im.size, im.mode)
@@ -346,7 +388,9 @@ def main():
         for dest, row in pending:
             data = output_bytes(src / row["source"])
             check(sha(data) == row["sha256"], row["source"])
-            publish(dest, data)
+            publish(dest, data, previous.get(row["destination"]))
+        if current_hd != hd_new:
+            publish(hd_path, hd_new, sha(hd_base))
     action = "written" if args.apply else "would write"
     if args.inventory:
         json.dump({**manifest, "assets": rows}, sys.stdout, indent=2)

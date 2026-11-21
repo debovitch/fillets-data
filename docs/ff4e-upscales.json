@@ -1,7 +1,8 @@
 {
   "source_repository": "https://github.com/ff4e/ff4e.github.io",
   "source_commit": "492dfd02a9f413e00a27b40d22d960732e931f78",
-  "destination_base": "7daaf56dc85500135588037c0bbbb0870b92ec6d",
+  "destination_base": "cd17311e9e13cce4e033596a0579c3fb1cb25958",
+  "originals_commit": "7daaf56dc85500135588037c0bbbb0870b92ec6d",
   "assets": [
     {"source": "public/enhanced-ai/BANKA/obj/banka-3-tmp.webp", "level": "experiments", "type": "sprite", "status": "integrated", "model": "cugan_c", "original": "images/experiments/banka-3-tmp.png", "destination": "images/experiments/banka-3-tmp.webp", "method": "item-manifests+identical-png", "confidence": "high", "bindings": [[4, 0]], "master": "public/enhanced/BANKA/obj/banka-3-tmp.png", "pixels": [540, 120], "alpha": [0, 255], "logical": [135, 30], "original_alpha": [0, 255], "original_sha256": "067370241f3da0aa0c609ab84cb98d37f51bda7dc4c541ed03d4fe6b74f00617", "preview_mae": 5.381, "scale": 4, "source_sha256": "f7475824a330fc650217e77bb60c23c665e08fe55e072b37f87b171e53a390b2", "sha256": "f7475824a330fc650217e77bb60c23c665e08fe55e072b37f87b171e53a390b2", "bytes": 3704},
     {"source": "public/enhanced-ai/BANKA/obj/banka-4-tmp.webp", "level": "experiments", "type": "sprite", "status": "integrated", "model": "cugan_c", "original": "images/experiments/banka-4-tmp.png", "destination": "images/experiments/banka-4-tmp.webp", "method": "item-manifests+identical-png", "confidence": "high", "bindings": [[5, 0]], "master": "public/enhanced/BANKA/obj/banka-4-tmp.png", "pixels": [180, 240], "alpha": [0, 255], "logical": [45, 60], "original_alpha": [0, 255], "original_sha256": "fa359826d8f6519177c623681c181c7f5134016d19bfe5ff23c19a2f5d1d64a0", "preview_mae": 9.668, "scale": 4, "source_sha256": "eec28dae63ea80e8e1b1fc1cca8c3c5e32e42fd0e70cd2ac2162db98d21aaecf", "sha256": "eec28dae63ea80e8e1b1fc1cca8c3c5e32e42fd0e70cd2ac2162db98d21aaecf", "bytes": 4162},
